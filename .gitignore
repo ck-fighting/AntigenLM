@@ -1,0 +1,11 @@
+dataset/
+__pycache__/
+*.pyc
+.cache/
+data_cached/
+data_TCR_cached/
+LLM/
+Other_LLM/
+methods/
+webserver/
+trained_model/

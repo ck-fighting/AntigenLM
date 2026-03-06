@@ -1,0 +1,67 @@
+{
+    "name": "bert_fine_microLM_full",
+    "n_gpu": 3,
+  
+    "pretrained_model_path": "/home/dataset-local/AntigenLM/LLM/Result_microLM_300M/0406_034622_rank0", 
+
+    "dataset": {
+      "type": "ProteinDataLoader",
+      "args": {
+        "data_path": "/home/dataset-local/AntigenLM/AntigenLM_training/dataset/pathogen_seq_ss.csv",
+        "batch_size": 256,
+        "max_length": 256,
+        "seed": 42,
+        "mlm_probability" : 0.15
+      }
+    },
+  
+    "metrics": {
+      "blosum_dir": "/home/dataset-local/AntigenLM/AntigenLM_training/metrics/blosum62.json",
+      "blosum": true
+    },
+  
+    "loss": "masked_language_model_loss",
+  
+    "trainer": {
+      "epochs": 10,
+      "batch_size": 100,
+      "save_dir": "/home/dataset-local/AntigenLM/LLM/Result_finetune_Full_microLM_300M_SS",
+      "lr": 5e-5,
+      "warmup": 0.1,
+      "weight_decay": 0.01,
+      "logging_steps": 500,
+      "eval_accumulation_steps": 64
+    },
+  
+    "optimizer": {
+      "type": "AdamW",
+      "args": {
+        "lr": 5e-5,
+        "weight_decay": 0.01
+      }
+    },
+  
+    "deepspeed": {
+      "train_micro_batch_size_per_gpu": "auto",
+      "gradient_accumulation_steps": 1,
+      "optimizer": {
+        "type": "Adam",
+        "params": {
+          "lr": "auto",
+          "weight_decay": "auto"
+        }
+      },
+      "fp16": {
+        "enabled": true
+      },
+      "zero_optimization": {
+        "stage": 2,
+        "overlap_comm": true,
+        "stage3_gather_16bit_weights_on_model_save": true
+      },
+      "gradient_clipping": 1.0,
+      "steps_per_print": 2000,
+      "wall_clock_breakdown": true
+    }
+  }
+  

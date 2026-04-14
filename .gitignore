@@ -3,10 +3,10 @@ __pycache__/
 .cache/
 data_cached/
 data_TCR_cached/
-LLM/*
-!LLM/.gitkeep
+LLM1/*
+!LLM1/.gitkeep
 test/
-Downstream/trained_model/
+Downstream/trained_model1/
 *.pt
 
 

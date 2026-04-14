@@ -25,7 +25,7 @@ This repository contains two main parts:
 
 > [!IMPORTANT]
 > - **Training**: Before running any training scripts, you must download the datasets from the links provided below and place them in the `AntigenLM_training/dataset/` directory.
-> - **Downstream Tasks**: To run downstream tasks, you must first download the **AntigenLM** model weights and place them in the `LLM/` directory.
+> - **Downstream Tasks**: To run downstream tasks, you must first download the **AntigenLM** model weights from https://huggingface.co/cckai2017/AntigenLM and place them in the `LLM/` directory.
 
 ## 1) AntigenLM_training
 
@@ -84,6 +84,14 @@ Notes:
 - `bert_pretrain_main.py` hard-codes CUDA_VISIBLE_DEVICES="0,1" at the top. Adjust in the script or use --device in parse_config.py only if you remove that hard-coded line.
 
 ## 2) Downstream
+
+> [!NOTE]
+> The trained checkpoints for the three downstream tasks (protective antigen prediction, pMHC recognition, and pTCR recognition) have already been prepared and are available on Hugging Face:
+> 
+> https://huggingface.co/cckai2017/Downstream_trained_model/tree/main
+> 
+> Please download the required files and place them under `Downstream/trained_model/` using the directory structure expected by the scripts.
+
 
 ### 2.1 Protective antigen classification
 

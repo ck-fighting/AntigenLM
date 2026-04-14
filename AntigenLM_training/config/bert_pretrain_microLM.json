@@ -5,9 +5,9 @@
     "dataset": {
         "type": "MAADataset",
         "args": {
-            "seq_dir": "/home/dataset-local/AntigenLM/AntigenLM_training/dataset/dataset_micro.fasta",
+            "seq_dir": "../dataset/dataset_micro.fasta",
             "token_length_list": "2,3",
-            "vocab_dir": "/home/dataset-local/AntigenLM/AntigenLM_training/bert_data_prepare/microorganism-2-3.csv",
+            "vocab_dir": "../bert_data_prepare/microorganism-2-3.csv",
             "seed": 0,
             "seq_name": "dataset_micro",
             "tokenizer_name": "common",
@@ -32,13 +32,13 @@
         }
     },
     "metrics": {
-        "blosum_dir": "/home/dataset-local/AntigenLM/AntigenLM_training/bert_data_prepare/blosum62.json",
+        "blosum_dir": "../bert_data_prepare/blosum62.json",
         "blosum": true
     },
     "trainer": {
         "epochs": 20,
         "batch_size": 256,
-        "save_dir": "/home/dataset-local/AntigenLM/LLM/Result_microLM_300M2",
+        "save_dir": "../../LLM/MicroLM_300M",
         "lr": 5e-05,
         "warmup": 0.1,
         "weight_decay": 0.01,

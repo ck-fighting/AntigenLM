@@ -73,6 +73,7 @@ def main(config):
         gradient_accumulation_steps=config['deepspeed'].get("gradient_accumulation_steps", 1),
         optim="adamw_torch",
         report_to="none",
+        remove_unused_columns=False,
         disable_tqdm=False,
         no_cuda=False,
         skip_memory_metrics=True,

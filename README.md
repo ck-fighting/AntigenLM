@@ -71,13 +71,13 @@ deepspeed --num_gpus=2 bert_pretrain_main.py -c config/bert_pretrain_microLM.jso
 Freeze fine-tune to PathogLM:
 ```bash
 cd AntigenLM_training
-python bert_finetuning_Freeze.py -c config/bert_finetrain_microLM_freeze.json
+deepspeed --num_gpus=2 bert_finetuning_Freeze.py -c config/bert_finetrain_microLM_freeze.json
 ```
 
-Freeze fine-tune PathogLM → antigenLM:
+Freeze fine-tune PathogLM → AntigenLM:
 ```bash
 cd AntigenLM_training
-python bert_finetuning_Freeze.py -c config/bert_finetrain_pathogLM_freeze.json
+deepspeed --num_gpus=2 bert_finetuning_Freeze.py -c config/bert_finetrain_pathogLM_freeze.json
 ```
 
 Notes:

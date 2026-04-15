@@ -1,25 +1,26 @@
 {
   "name": "antigenLM_freeze",
   "n_gpu": 2,
-  "pretrained_model_path": "../../LLM/PathogLM_300M_SS",
+  "pretrained_model_path": "../LLM/PathogLM_300M_SS",
   "dataset": {
     "type": "ProteinDataLoader",
     "args": {
-      "data_path": "../dataset/antigen_seq_ss.csv",
+      "data_path": "./dataset/antigen_seq_ss_2.csv",
       "batch_size": 256,
       "max_length": 256,
-      "seed": 42
+      "seed": 42,
+      "mlm_probability": 0.15
     }
   },
   "metrics": {
-    "blosum_dir": "../bert_data_prepare/blosum62.json",
+    "blosum_dir": "./bert_data_prepare/blosum62.json",
     "blosum": true
   },
   "loss": "masked_language_model_loss",
   "trainer": {
     "epochs": 10,
     "batch_size": 256,
-    "save_dir": "../../LLM/AntigenLM_300M_SS",
+    "save_dir": "../LLM/AntigenLM_300M_SS",
     "lr": 5e-5,
     "warmup": 0.1,
     "weight_decay": 0.01,

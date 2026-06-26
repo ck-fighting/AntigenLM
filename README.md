@@ -47,15 +47,15 @@ This repository contains two main parts:
 
 ### 1.2 Datasets (Hugging Face)
 
-- [dataset_micro.fasta](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/dataset_micro.fasta): pretraining FASTA for MicroLM (raw protein sequences).
-- [antigen_seq_ss_2.csv](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/antigen_seq_ss_2.csv): antigen sequences with secondary-structure labels (`sequence`, `second_structure`) for AntigenLM fine-tuning.
-- [pathogen_seq_ss.csv](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/pathogen_seq_ss.csv): pathogen sequences with secondary-structure labels (`sequence`, `second_structure`) for PathogLM fine-tuning.
+- [antigen_seq_ss.csv](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/antigen_seq_ss.csv): antigen sequences with secondary-structure labels (`sequence`, `second_structure`) for AntigenLM fine-tuning.
+- [pathogen_seq.fasta](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/pathogen_seq.fasta): pathogen FASTA for PathogLM fine-tuning.
+- [dataset_micro.fasta.fasta](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/dataset_micro.fasta.fasta): pretraining FASTA for MicroLM (raw protein sequences).
 
 ### 1.3 Trained Models (Hugging Face)
 
-- [AntigenLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/Result_antigenLM_300M_SS): final model used directly for downstream embeddings.
-- [PathogLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/Result_PathogLM_300M_SS): intermediate model obtained by fine-tuning from MicroLM.
-- [MicroLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/Result_microLM_300M): base pretrained model.
+- [AntigenLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/AntigenLM): final model used directly for downstream embeddings.
+- [PathogLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/PathogLM): intermediate model obtained by fine-tuning from MicroLM.
+- [MicroLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/MicroLM): base pretrained model.
 
 ### 1.4 Configs
 

@@ -1,0 +1,69 @@
+{
+  "name": "finetune_PathogLM_esmc_style_full_bias_last8_layers",
+  "n_gpu": 4,
+  "pretrained_model_path": "../LLM/PathogLM_esmc_style_full_bias",
+  "dataset": {
+    "type": "MAADataset",
+    "args": {
+      "seq_dir": "./dataset/pathogen_nr50_priority.csv",
+      "token_length_list": "",
+      "vocab_dir": "",
+      "seed": 0,
+      "seq_name": "dataset_pathogen_nr50_priority",
+      "tokenizer_name": "esmc",
+      "max_len": 256,
+      "test_split": 0.001
+    }
+  },
+  "metrics": {
+    "blosum_dir": "./bert_data_prepare/blosum62.json",
+    "blosum": true
+  },
+  "loss": "masked_language_model_loss",
+  "trainer": {
+    "epochs": 1,
+    "max_steps": -1,
+    "last_n_layers": 8,
+    "batch_size": 160,
+    "mlm_probability": 0.15,
+    "save_dir": "../LLM/PathogLM_esmc_style_full_bias_last8_layers",
+    "lr": 0.00005,
+    "warmup": 0.1,
+    "weight_decay": 0.01,
+    "eval_steps": 10000,
+    "save_steps": 10000,
+    "save_total_limit": 5,
+    "eval_accumulation_steps": 64,
+    "dataloader_num_workers": 8,
+    "dataloader_pin_memory": true,
+    "dataloader_persistent_workers": true,
+    "dataloader_prefetch_factor": 2,
+    "logging_steps": 100,
+    "metric_for_best_model": "eval_acc",
+    "early_stopping_patience": 5
+  },
+  "deepspeed": {
+    "train_micro_batch_size_per_gpu": "auto",
+    "gradient_accumulation_steps": 1,
+    "deepspeed_multinode_launcher": "standard",
+    "optimizer": {
+      "type": "Adam",
+      "params": {
+        "lr": "auto",
+        "weight_decay": "auto",
+        "torch_adam": true
+      }
+    },
+    "fp16": {
+      "enabled": true
+    },
+    "zero_optimization": {
+      "stage": 2,
+      "overlap_comm": true,
+      "stage3_gather_16bit_weights_on_model_save": true
+    },
+    "gradient_clipping": 1.0,
+    "steps_per_print": 2000,
+    "wall_clock_breakdown": true
+  }
+}

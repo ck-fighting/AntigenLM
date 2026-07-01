@@ -1,15 +1,15 @@
 {
-  "name": "finetune_MicroLM_esmc_style_full_bias_last8_layers",
+  "name": "finetune_MicroLM_last8_layers",
   "n_gpu": 4,
-  "pretrained_model_path": "../LLM/MicroLM_esmc_style_full_bias_last8_bias",
+  "pretrained_model_path": "../LLM/MicroLM",
   "dataset": {
     "type": "MAADataset",
     "args": {
-      "seq_dir": "./dataset/micro_nr50_priority.fasta",
+      "seq_dir": "./dataset/pathogen_seq_ss.csv",
       "token_length_list": "",
       "vocab_dir": "",
       "seed": 0,
-      "seq_name": "dataset_micro_nr50_priority",
+      "seq_name": "dataset_pathogen_seq",
       "tokenizer_name": "esmc",
       "max_len": 128,
       "test_split": 0.001
@@ -21,13 +21,13 @@
   },
   "loss": "masked_language_model_loss",
   "trainer": {
-    "epochs": 1,
+    "epochs": 10,
     "max_steps": -1,
     "last_n_layers": 8,
-    "batch_size": 320,
+    "batch_size": 256,
     "mlm_probability": 0.15,
-    "save_dir": "../LLM/MicroLM_esmc_style_full_bias_last8_layers",
-    "lr": 0.00005,
+    "save_dir": "../LLM/PathogLM",
+    "lr": 5e-5,
     "warmup": 0.1,
     "weight_decay": 0.01,
     "eval_steps": 10000,

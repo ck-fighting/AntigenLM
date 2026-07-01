@@ -372,7 +372,7 @@ def run_pldgl_subset(args, subset, extract_emb_func, emb_dim, device):
     test_df = read_labeled_table(test_xlsx)
 
     run_name = sanitize_name(f"PLDGL_{subset}")
-    run_save_dir = P(args.save_dir, run_name)
+    run_save_dir = P(args.save_dir, "PLDGL")
     os.makedirs(run_save_dir, exist_ok=True)
     save_path = P(run_save_dir, f"{run_name}_seed{args.seed}_{args.embed_backend}.pt")
 

@@ -5,11 +5,11 @@
     "dataset": {
         "type": "MAADataset",
         "args": {
-            "seq_dir": "./dataset/micro_nr50_priority.fasta",
+            "seq_dir": "./dataset/micro_seq.fasta",
             "token_length_list": "",
             "vocab_dir": "",
             "seed": 0,
-            "seq_name": "dataset_micro",
+            "seq_name": "dataset_micro_seq",
             "tokenizer_name": "esmc",
             "max_len": 256,
             "test_split": 0.001
@@ -29,18 +29,18 @@
         "blosum": true
     },
     "trainer": {
-        "epochs": 20,
-        "batch_size": 1,
+        "epochs": 10,
+        "batch_size": 256,
         "mlm_probability": 0.15,
-        "save_dir": "../LLM_download/ESMC_300M_scratch_mlm",
-        "lr": 1e-4,
+        "save_dir": "../LLM_download/MicroLM",
+        "lr": 5e-5,
         "warmup": 0.1,
         "weight_decay": 0.01,
         "eval_accumulation_steps": 64,
         "logging_steps": 100
     },
     "deepspeed": {
-        "train_micro_batch_size_per_gpu": 1,
+        "train_micro_batch_size_per_gpu": 256,
         "gradient_accumulation_steps": 64,
         "deepspeed_multinode_launcher": "standard",
         "optimizer": {

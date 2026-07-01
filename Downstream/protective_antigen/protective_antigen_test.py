@@ -118,7 +118,7 @@ def resolve_cv_checkpoint(weights_dir, run_name, fold_idx, seed, embed_backend):
 
 
 def resolve_pldgl_checkpoint(weights_dir, subset, seed, embed_backend):
-    checkpoint_name = f"PLDGL_{subset}_BCE_seed{seed}_{embed_backend}.pt"
+    checkpoint_name = f"PLDGL_{subset}_seed{seed}_{embed_backend}.pt"
     checkpoint_path = P(weights_dir, "PLDGL", checkpoint_name)
     return checkpoint_path if os.path.exists(checkpoint_path) else None, checkpoint_path
 
@@ -214,7 +214,7 @@ def evaluate_pldgl(args, extract_emb_func, emb_dim, device):
     print(f"Weights directory: {args.weights_dir}")
     print(f"Output directory: {run_out_dir}")
 
-    for subset in parse_subset_list(args.pldgl_subset, args.run_all_pldgl_subsets):
+    for subset in parse_subset_list(args.subset, args.run_all_pldgl_subsets):
         test_path = args.test_file or P(data_dir, f"test_set_{subset}.xlsx")
         if not os.path.exists(test_path):
             raise FileNotFoundError(f"PLDGL test file not found: {test_path}")
@@ -296,7 +296,7 @@ def main():
 
     p.add_argument("--pldgl", action="store_true", help="Deprecated alias for --mode Independent")
     p.add_argument("--pldgl_dir", type=str, default=None)
-    p.add_argument("--pldgl_subset", type=str, default="All")
+    p.add_argument("--subset", type=str, default="All")
     p.add_argument("--run_all_pldgl_subsets", action="store_true")
     p.add_argument("--test_file", type=str, default=None, help="Optional explicit csv/xlsx test file")
     args = p.parse_args()

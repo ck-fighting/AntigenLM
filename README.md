@@ -10,29 +10,23 @@
 
 2. Create a virtual environment by conda.
    ```bash
-   conda create -n AntigenLM python=3.8 -y
+   conda env create -f environment.yml -n AntigenLM
    conda activate AntigenLM
-   ```
-
-3. Install dependencies.
-   ```bash
-   pip install torch torchvision torchaudio
-   pip install transformers deepspeed accelerate safetensors
-   pip install pandas numpy scipy scikit-learn tqdm openpyxl biopython
    ```
 
 ---
 
 ## Overview
 
-This repository contains two main parts:
+This repository contains three main parts:
 
 - `Pre-training/`: pretraining and fine-tuning pipelines for MicroLM -> PathogLM -> AntigenLM.
 - `Downstream/`: downstream tasks (protective antigen prediction, pTCR recognition, pHLA-I recognition, pHLA-II recognition, and B-cell epitope prediction) using pretrained embeddings.
+- `LLM/`: local storage for pretrained model weights, including `AntigenLM/`, `PathogLM/`, and `MicroLM/`.
 
 > [!IMPORTANT]
 > - **Training**: Before running any training scripts, you must download the datasets from the links provided below and place them in the `Pre-training/dataset/` directory.
-> - **Downstream Tasks**: To run downstream tasks, you must first download the **AntigenLM** model weights from https://huggingface.co/cckai2017/AntigenLM and place them in the `LLM/AntigenLM/` directory.
+> - **Downstream Tasks**: To run downstream tasks, you must first download the **AntigenLM** model and place them in the `LLM/` directory.
 
 ## 1) Pre-training
 
@@ -48,8 +42,8 @@ This repository contains two main parts:
 ### 1.2 Datasets (Hugging Face)
 
 - [antigen_seq_ss.csv](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/antigen_seq_ss.csv): antigen sequences with secondary-structure labels (`sequence`, `second_structure`) for AntigenLM fine-tuning.
-- [pathogen_seq.fasta](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/pathogen_seq.fasta): pathogen FASTA for PathogLM fine-tuning.
-- [dataset_micro.fasta.fasta](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/dataset_micro.fasta.fasta): pretraining FASTA for MicroLM (raw protein sequences).
+- [pathogen_seq.fasta](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/pathogen_seq_ss.csv.csv): pathogen sequences with secondary-structure labels (`sequence`, `second_structure`) for PathogLM fine-tuning.
+- [dataset_micro.fasta](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/dataset_micro.fasta.fasta): pretraining FASTA for MicroLM (raw protein sequences).
 
 ### 1.3 Trained Models (Hugging Face)
 
@@ -76,13 +70,13 @@ deepspeed --num_gpus=4 esmc_pretrain_main.py -c config/bert_pretrain_esmc_300m.j
 Fine-tune MicroLM to PathogLM:
 ```bash
 cd Pre-training
-deepspeed --num_gpus=4 bert_finetuning_esmc_style_last8_layers.py -c config/bert_finetune_MicroLM_esmc_style_full_bias_last8_layers.json
+deepspeed --num_gpus=4 bert_finetuning_esmc_style_last8_layers.py -c config/bert_finetune_MicroLM_last8_layers.json
 ```
 
 Fine-tune PathogLM to AntigenLM:
 ```bash
 cd Pre-training
-deepspeed --num_gpus=4 bert_finetuning_esmc_style_last8_layers.py -c config/bert_finetune_PathogLM_esmc_style_full_bias_last8_layers.json
+deepspeed --num_gpus=4 bert_finetuning_esmc_style_last8_layers.py -c config/bert_finetune_PathogLM_last8_layers.json
 ```
 
 ## 2) Downstream
@@ -96,30 +90,56 @@ deepspeed --num_gpus=4 bert_finetuning_esmc_style_last8_layers.py -c config/bert
 
 ### 2.1 Protective Antigen Classification
 
-Train:
+Train CV:
 ```bash
 cd Downstream/protective_antigen
 python protective_antigen_train.py
 ```
 
-Test:
+Test CV:
 ```bash
 cd Downstream/protective_antigen
 python protective_antigen_test.py
 ```
 
-### 2.2 pHLA-I Binding
-
-Train:
+Train Independent dataset:
 ```bash
-cd Downstream/pMHC-I
-torchrun --standalone --nproc_per_node=1 MHC_train.py
+cd Downstream/protective_antigen
+python protective_antigen_train.py --mode Independent --subset Bacteria
+python protective_antigen_train.py --mode Independent --subset Viruses
 ```
 
-Test:
+Test Independent dataset:
+```bash
+cd Downstream/protective_antigen
+python protective_antigen_test.py --mode independent --subset Bacteria
+python protective_antigen_test.py --mode independent --subset Viruses
+```
+
+### 2.2 pHLA-I Binding
+
+Train CV:
 ```bash
 cd Downstream/pMHC-I
-python MHC_test.py
+torchrun --standalone --nproc_per_node=1 MHC_train.py --mode cv
+```
+
+Test CV:
+```bash
+cd Downstream/pMHC-I
+python MHC_test.py --mode cv
+```
+
+Train Independent dataset:
+```bash
+cd Downstream/pMHC-I
+torchrun --standalone --nproc_per_node=1 MHC_train.py --mode independent
+```
+
+Test Independent dataset:
+```bash
+cd Downstream/pMHC-I
+python MHC_test.py --mode independent
 ```
 
 ### 2.3 pHLA-II Binding
@@ -127,19 +147,31 @@ python MHC_test.py
 Precompute peptide embeddings:
 ```bash
 cd Downstream/pMHC-II
-python precompute_peptide_embeddings.py
+python precompute_peptide_embeddings.py --split all --max-length 34
 ```
 
-Train:
+Train CV:
 ```bash
 cd Downstream/pMHC-II
-python train.py
+python train.py --mode cv_train --folds all
 ```
 
-Test:
+Test warm/cold datasets:
 ```bash
 cd Downstream/pMHC-II
-python test.py
+python test.py --eval-set both --folds all
+```
+
+Test warm dataset only:
+```bash
+cd Downstream/pMHC-II
+python test.py --eval-set warm --folds all
+```
+
+Test cold dataset only:
+```bash
+cd Downstream/pMHC-II
+python test.py --eval-set cold --folds all
 ```
 
 ### 2.4 pTCR Binding

@@ -7,8 +7,8 @@ import torch
 
 P = os.path.join
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_CV_DATA_DIR = P(SCRIPT_DIR, "data")
-DEFAULT_PLDGL_DATA_DIR = P(SCRIPT_DIR, "data", "Independent_data", "PLDGL")
+DEFAULT_CV_DATA_DIR = P(SCRIPT_DIR, "data", "cluster_aware_40_70_15_15_splits")
+DEFAULT_PLDGL_DATA_DIR = P(SCRIPT_DIR, "data", "Independent_data")
 PLDGL_SUBSETS = ("Bacteria", "Viruses")
 
 

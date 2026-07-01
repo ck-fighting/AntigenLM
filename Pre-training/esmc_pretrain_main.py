@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import argparse
 import collections
+import inspect
 import os
 import random
 import shutil
@@ -81,15 +82,20 @@ class AntigenLMForMaskedLM(PreTrainedModel):
         super().__init__(config)
         patch_esmc_tokenizer_for_transformers_compat()
         from esm.models.esmc import ESMC
-        from esm.pretrained import get_esmc_model_tokenizers
+        try:
+            from esm.pretrained import get_esmc_model_tokenizers
+        except ImportError:
+            from esm.tokenization import get_esmc_model_tokenizers
 
-        self.backbone = ESMC(
-            d_model=config.d_model,
-            n_heads=config.n_heads,
-            n_layers=config.n_layers,
-            tokenizer=get_esmc_model_tokenizers(),
-            use_flash_attn=config.use_flash_attn,
-        )
+        esmc_kwargs = {
+            "d_model": config.d_model,
+            "n_heads": config.n_heads,
+            "n_layers": config.n_layers,
+            "tokenizer": get_esmc_model_tokenizers(),
+        }
+        if "use_flash_attn" in inspect.signature(ESMC.__init__).parameters:
+            esmc_kwargs["use_flash_attn"] = config.use_flash_attn
+        self.backbone = ESMC(**esmc_kwargs)
         if getattr(config, "disable_bias", False):
             remove_linear_and_layernorm_biases(self.backbone)
 

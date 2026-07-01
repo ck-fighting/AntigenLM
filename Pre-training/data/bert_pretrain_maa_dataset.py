@@ -149,7 +149,10 @@ class MAADataset:
             self.bert_tokenizer.save_pretrained(config._save_dir)
 
     def _build_esmc_tokenizer(self):
-        from esm.pretrained import get_esmc_model_tokenizers
+        try:
+            from esm.pretrained import get_esmc_model_tokenizers
+        except ImportError:
+            from esm.tokenization import get_esmc_model_tokenizers
         from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
 
         def make_special_property(name):

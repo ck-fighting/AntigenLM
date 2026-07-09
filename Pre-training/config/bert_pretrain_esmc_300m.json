@@ -32,7 +32,7 @@
         "epochs": 10,
         "batch_size": 256,
         "mlm_probability": 0.15,
-        "save_dir": "../LLM_download/MicroLM",
+        "save_dir": "../LLM/MicroLM",
         "lr": 5e-5,
         "warmup": 0.1,
         "weight_decay": 0.01,

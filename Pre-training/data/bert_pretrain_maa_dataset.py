@@ -42,7 +42,7 @@ class SelfSupervisedDataset(Dataset):
         self.max_len = int(min_power_greater_than(max_len, 2)) if round_len else max_len
         self.logger.info(f"Max sequence length set to: {self.max_len}")
         
-        self.processed_seqs = self._split_protein_sequences()
+        self.processed_seqs, self.split_group_ids = self._split_protein_sequences()
         self._has_logged_example = False
         self.logger.info(f"Total processed sequences: {len(self.processed_seqs)}")
     
@@ -52,21 +52,28 @@ class SelfSupervisedDataset(Dataset):
         窗口大小为 self.max_len，步长默认为 self.max_len // 2。
         """
         processed_seqs = []
+        processed_group_ids = []
+        source_id_by_sequence = {}
         step = self.max_len // 2
         
         for seq in self.seqs:
+            source_id = source_id_by_sequence.setdefault(seq, len(source_id_by_sequence))
             seq_len = len(seq)
             if seq_len <= self.max_len:
                 processed_seqs.append(seq)
+                processed_group_ids.append(source_id)
             else:
                 for i in range(0, seq_len - self.max_len + 1, step):
                     processed_seqs.append(seq[i:i + self.max_len])
+                    processed_group_ids.append(source_id)
                 # 如果最后一段窗口未完全覆盖，则添加最后一个完整窗口
                 if (seq_len - self.max_len) % step != 0:
                     processed_seqs.append(seq[-self.max_len:])
+                    processed_group_ids.append(source_id)
         
         self.logger.info(f"Number of subsequences after splitting: {len(processed_seqs)}")
-        return processed_seqs
+        self.logger.info(f"Number of source sequence groups: {len(source_id_by_sequence)}")
+        return processed_seqs, processed_group_ids
 
     def __len__(self):
         return len(self.processed_seqs)

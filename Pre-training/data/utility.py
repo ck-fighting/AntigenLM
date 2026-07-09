@@ -30,7 +30,10 @@ class DatasetSplit(Dataset):
         if self.split != "train":
             assert not self.dynamic, "Cannot have dynamic examples for valid/test"
         
-        self.idx = self.shuffle_indices_train_valid_test(np.arange(len(self.dset)), **kwargs)[split_to_idx[self.split]]
+        split_group_ids = getattr(self.dset, "split_group_ids", None)
+        self.idx = self.shuffle_indices_train_valid_test(
+            np.arange(len(self.dset)), groups=split_group_ids, **kwargs
+        )[split_to_idx[self.split]]
         self.logger.info(f"Split {self.split} with {len(self)} examples")
 
     def all_labels(self, **kwargs) -> np.ndarray:
@@ -84,9 +87,17 @@ class DatasetSplit(Dataset):
         assert os.path.isfile(fname)
         return os.path.abspath(fname)
 
-    def shuffle_indices_train_valid_test(self, idx:np.ndarray, valid:float=0.15, test:float=0.15, seed:int=1234):
+    def shuffle_indices_train_valid_test(
+        self,
+        idx: np.ndarray,
+        valid: float = 0.15,
+        test: float = 0.15,
+        seed: int = 1234,
+        groups=None,
+    ):
         """
         Given an array of indices, return indices partitioned into train, valid, and test indices
+        If groups is provided, all indices with the same group id are kept in the same split.
         The following tests ensure that ordering is consistent across different calls
         >>> np.all(shuffle_indices_train_valid_test(np.arange(100))[0] == shuffle_indices_train_valid_test(np.arange(100))[0])
         True
@@ -97,9 +108,14 @@ class DatasetSplit(Dataset):
         >>> np.all(shuffle_indices_train_valid_test(np.arange(1000), 0.1, 0.1)[1] == shuffle_indices_train_valid_test(np.arange(1000), 0.1, 0.1)[1])
         True
         """
-        np.random.seed(seed)  # For reproducible subsampling
+        rng = np.random.RandomState(seed)
         indices = np.copy(idx)  # Make a copy because shuffling occurs in place
-        np.random.shuffle(indices)  # Shuffles inplace
+        if groups is not None:
+            return self._shuffle_grouped_indices_train_valid_test(
+                indices, groups, valid, test, rng
+            )
+
+        rng.shuffle(indices)  # Shuffles inplace
         num_valid = int(round(len(indices) * valid)) if valid > 0 else 0
         num_test = int(round(len(indices) * test)) if test > 0 else 0
         num_train = len(indices) - num_valid - num_test
@@ -114,6 +130,79 @@ class DatasetSplit(Dataset):
         assert indices_train.size + indices_valid.size + indices_test.size == len(idx)
 
         return indices_train, indices_valid, indices_test
+
+    def _shuffle_grouped_indices_train_valid_test(
+        self,
+        indices: np.ndarray,
+        groups,
+        valid: float,
+        test: float,
+        rng,
+    ):
+        group_array = np.asarray(groups, dtype=object)
+        if len(group_array) != len(self.dset):
+            raise ValueError(
+                f"Expected {len(self.dset)} split group ids, got {len(group_array)}."
+            )
+
+        group_to_indices = {}
+        for index in indices:
+            group_to_indices.setdefault(group_array[index], []).append(index)
+
+        shuffled_groups = list(group_to_indices.keys())
+        rng.shuffle(shuffled_groups)
+        total = len(indices)
+        target_valid = int(round(total * valid)) if valid > 0 else 0
+        target_test = int(round(total * test)) if test > 0 else 0
+
+        test_groups = self._pop_groups_for_target(
+            shuffled_groups, group_to_indices, target_test, reserve_groups=1
+        )
+        valid_groups = self._pop_groups_for_target(
+            shuffled_groups, group_to_indices, target_valid, reserve_groups=1
+        )
+        train_groups = shuffled_groups
+
+        indices_train = self._collect_group_indices(
+            train_groups, group_to_indices, indices.dtype, rng
+        )
+        indices_valid = self._collect_group_indices(
+            valid_groups, group_to_indices, indices.dtype, rng
+        )
+        indices_test = self._collect_group_indices(
+            test_groups, group_to_indices, indices.dtype, rng
+        )
+
+        assert indices_train.size > 0 and indices_valid.size >= 0 and indices_test.size >= 0
+        assert indices_train.size + indices_valid.size + indices_test.size == len(indices)
+        self.logger.info(
+            f"Using group-aware split over {len(group_to_indices)} source groups "
+            f"for {len(indices)} examples"
+        )
+        return indices_train, indices_valid, indices_test
+
+    def _pop_groups_for_target(self, groups, group_to_indices, target_size, reserve_groups):
+        selected_groups = []
+        selected_size = 0
+        while (
+            target_size > 0
+            and len(groups) > reserve_groups
+            and selected_size < target_size
+        ):
+            group_id = groups.pop()
+            selected_groups.append(group_id)
+            selected_size += len(group_to_indices[group_id])
+        return selected_groups
+
+    def _collect_group_indices(self, groups, group_to_indices, dtype, rng):
+        if not groups:
+            return np.array([], dtype=dtype)
+        indices = np.asarray(
+            [index for group_id in groups for index in group_to_indices[group_id]],
+            dtype=dtype,
+        )
+        rng.shuffle(indices)
+        return indices
 
     def __len__(self) -> int:
         return len(self.idx)

@@ -1,0 +1,2 @@
+fold,acc,precision,recall,f1,mcc,auc,aupr
+cluster_aware_fold_1,0.98,0.9545454545454546,1.0,0.9767441860465117,0.9600156738532383,1.0,1.0

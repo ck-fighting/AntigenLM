@@ -37,3 +37,7 @@ uniport/
 
 # Too large for regular GitHub repositories.
 Downstream/pMHC-I/data/Independent\ data/el_train.csv
+
+# Track figure-ready predictions and summary tables.
+!Downstream/Result/
+!Downstream/Result/**

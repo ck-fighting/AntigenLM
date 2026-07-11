@@ -1,235 +1,335 @@
 # AntigenLM Codebase Overview
 
+AntigenLM is a protein language model for antigen representation and immune-related prediction. This repository provides the three-stage pre-training pipeline, five downstream benchmarks, a small protective-antigen demo, released results, and figure-generation scripts.
+
 ## Installation
 
-1. Clone the repository.
+1. Clone the repository:
+
    ```bash
    git clone https://github.com/ck-fighting/AntigenLM.git
    cd AntigenLM
    ```
 
-2. Create a virtual environment by conda.
+2. Create and activate the Conda environment:
+
    ```bash
-   conda env create -f environment.yml -n AntigenLM
+   conda env create -f environment.yml
    conda activate AntigenLM
    ```
 
----
+3. Download the required model files:
+
+   - For downstream prediction and the demo, download [AntigenLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/AntigenLM) to `LLM/AntigenLM/`.
+   - To reproduce the complete pre-training pipeline, also download [MicroLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/MicroLM) and [PathogLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/PathogLM) to `LLM/MicroLM/` and `LLM/PathogLM/`, respectively.
+   - To evaluate with released downstream classifiers, download the [downstream checkpoints](https://huggingface.co/cckai2017/Downstream_trained_model/tree/main) and retain their directory structure under `Downstream/trained_model/`.
+
+## System Requirements
+
+### Software
+
+- Linux (Ubuntu recommended)
+- Conda or Miniconda
+- Python 3.10
+- PyTorch 2.2.2
+- Transformers 4.45.2
+- DeepSpeed 0.14.4 for pre-training
+- The remaining Python dependencies in `environment.yml`
+
+### Hardware
+
+- An NVIDIA CUDA-compatible GPU is strongly recommended for embedding extraction, training, and inference.
+- The pre-training commands below are configured for four GPUs by default. Change `--num_gpus` to match the available hardware.
+- The downstream tasks are configured to use one GPU by default.
+
+All experiments were conducted on Ubuntu 20.04.6 LTS with Python 3.10.20, PyTorch 2.2.2+cu121, CUDA 12.1, and NVIDIA A100-SXM4-80GB GPUs.
 
 ## Overview
 
-This repository contains three main parts:
+The main repository directories are:
 
-- `Pre-training/`: pretraining and fine-tuning pipelines for MicroLM -> PathogLM -> AntigenLM.
-- `Downstream/`: downstream tasks (protective antigen prediction, pTCR recognition, pHLA-I recognition, pHLA-II recognition, and B-cell epitope prediction) using pretrained embeddings.
-- `LLM/`: local storage for pretrained model weights, including `AntigenLM/`, `PathogLM/`, and `MicroLM/`.
+```text
+AntigenLM/
+├── Pre-training/   # MicroLM -> PathogLM -> AntigenLM training pipeline
+├── Downstream/     # Downstream datasets, training, and evaluation code
+│   └── Result/   # Figure-ready predictions and summary tables
+├── LLM/            # Local pretrained model files
+├── demo/           # Small protective-antigen prediction example
+
+```
+
+The model is developed in three stages:
+
+1. **MicroLM:** pre-training on microbial protein sequences.
+2. **PathogLM:** fine-tuning MicroLM on pathogen protein sequences and secondary-structure labels.
+3. **AntigenLM:** fine-tuning PathogLM on antigen sequences and secondary-structure labels.
+
+The final AntigenLM encoder is evaluated on protective-antigen classification, pHLA-I binding, pHLA-II binding, pTCR recognition, and B-cell epitope prediction.
 
 > [!IMPORTANT]
-> - **Training**: Before running any training scripts, you must download the datasets from the links provided below and place them in the `Pre-training/dataset/` directory.
-> - **Downstream Tasks**: To run downstream tasks, you must first download the **AntigenLM** model and place them in the `LLM/` directory.
+> Before pre-training, download the datasets described below to `Pre-training/dataset/`. Before running downstream tasks, place the AntigenLM model in `LLM/AntigenLM/`. Evaluation with released classifiers additionally requires the appropriate checkpoint files in `Downstream/trained_model/`.
 
 ## 1) Pre-training
 
-### 1.1 Structure
+### 1.1 Code Structure
 
-- `esmc_pretrain_main.py`: MicroLM pretraining with DeepSpeed.
-- `bert_finetuning_esmc_style_last8_layers.py`: fine-tuning script used for MicroLM and PathogLM stages.
-- `data/`: dataset loaders and collators.
-- `bert_data_prepare/`: tokenizer and data preparation utilities.
-- `config/`: JSON configs used by the scripts.
-- `dataset/`: downloaded pretraining and fine-tuning datasets.
+- `Pre-training/esmc_pretrain_main.py`: MicroLM pre-training with DeepSpeed.
+- `Pre-training/bert_finetuning_esmc_style_last8_layers.py`: fine-tuning script for the PathogLM and AntigenLM stages.
+- `Pre-training/data/`: dataset loaders and collators.
+- `Pre-training/bert_data_prepare/`: tokenizer and data-preparation utilities.
+- `Pre-training/config/`: training configurations.
+- `Pre-training/dataset/`: local directory for downloaded training datasets.
 
-### 1.2 Datasets (Hugging Face)
+### 1.2 Training Datasets
 
-- [antigen_seq_ss.csv](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/antigen_seq_ss.csv): antigen sequences with secondary-structure labels (`sequence`, `second_structure`) for AntigenLM fine-tuning.
-- [pathogen_seq.fasta](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/pathogen_seq_ss.csv.csv): pathogen sequences with secondary-structure labels (`sequence`, `second_structure`) for PathogLM fine-tuning.
-- [dataset_micro.fasta](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/dataset_micro.fasta.fasta): pretraining FASTA for MicroLM (raw protein sequences).
+Download the following files from [the AntigenLM dataset repository](https://huggingface.co/datasets/cckai2017/AntigenLM/tree/main) and place them in `Pre-training/dataset/`:
 
-### 1.3 Trained Models (Hugging Face)
+- [`dataset_micro.fasta`](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/dataset_micro.fasta.fasta): raw microbial protein sequences for MicroLM pre-training.
+- [`pathogen_seq_ss.csv`](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/pathogen_seq_ss.csv.csv): pathogen sequences and secondary-structure labels for PathogLM fine-tuning.
+- [`antigen_seq_ss.csv`](https://huggingface.co/datasets/cckai2017/AntigenLM/blob/main/antigen_seq_ss_2.csv.csv): antigen sequences and secondary-structure labels for AntigenLM fine-tuning.
 
-- [AntigenLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/AntigenLM): final model used directly for downstream embeddings.
-- [PathogLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/PathogLM): intermediate model obtained by fine-tuning from MicroLM.
-- [MicroLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/MicroLM): base pretrained model.
+The fine-tuning CSV files contain the `sequence` and `second_structure` columns.
 
-### 1.4 Configs
+### 1.3 Configurations
 
-- `Pre-training/config/bert_pretrain_esmc_300m.json`: MicroLM pretraining config.
-- `Pre-training/config/bert_finetune_MicroLM_esmc_style_full_bias_last8_layers.json`: fine-tuning config to train PathogLM from MicroLM.
-- `Pre-training/config/bert_finetune_PathogLM_esmc_style_full_bias_last8_layers.json`: fine-tuning config to train AntigenLM from PathogLM.
+- `Pre-training/config/bert_pretrain_esmc_300m.json`: MicroLM pre-training.
+- `Pre-training/config/bert_finetune_MicroLM_last8_layers.json`: MicroLM to PathogLM fine-tuning.
+- `Pre-training/config/bert_finetune_PathogLM_last8_layers.json`: PathogLM to AntigenLM fine-tuning.
 
-These configs define pretrained model paths, dataset paths, and output checkpoint locations.
+Review the dataset, pretrained-model, and output-checkpoint paths in each JSON file before launching a job.
 
-### 1.5 Run Commands
+### 1.4 Run Commands
 
-Pretrain MicroLM:
+Pre-train MicroLM:
+
 ```bash
 cd Pre-training
-deepspeed --num_gpus=4 esmc_pretrain_main.py -c config/bert_pretrain_esmc_300m.json
+deepspeed --num_gpus=4 esmc_pretrain_main.py \
+  -c config/bert_pretrain_esmc_300m.json
 ```
 
 Fine-tune MicroLM to PathogLM:
+
 ```bash
 cd Pre-training
-deepspeed --num_gpus=4 bert_finetuning_esmc_style_last8_layers.py -c config/bert_finetune_MicroLM_last8_layers.json
+deepspeed --num_gpus=4 bert_finetuning_esmc_style_last8_layers.py \
+  -c config/bert_finetune_MicroLM_last8_layers.json
 ```
 
 Fine-tune PathogLM to AntigenLM:
+
 ```bash
 cd Pre-training
-deepspeed --num_gpus=4 bert_finetuning_esmc_style_last8_layers.py -c config/bert_finetune_PathogLM_last8_layers.json
+deepspeed --num_gpus=4 bert_finetuning_esmc_style_last8_layers.py \
+  -c config/bert_finetune_PathogLM_last8_layers.json
 ```
+
+Run each command from a fresh repository-root shell, or remain in `Pre-training/` between stages rather than repeating `cd Pre-training`.
 
 ## 2) Downstream
 
-> [!NOTE]
-> The trained checkpoints for downstream tasks are available on Hugging Face:
->
-> https://huggingface.co/cckai2017/Downstream_trained_model/tree/main
->
-> Please download the required files and place them under `Downstream/trained_model/` using the directory structure expected by the scripts.
+The downstream scripts use pretrained embeddings with task-specific prediction heads. Released task checkpoints are available from the [Downstream trained model repository](https://huggingface.co/cckai2017/Downstream_trained_model/tree/main).
 
 ### 2.1 Protective Antigen Classification
 
-Train CV:
+Train and evaluate five-fold cross-validation:
+
 ```bash
 cd Downstream/protective_antigen
 python protective_antigen_train.py
-```
-
-Test CV:
-```bash
-cd Downstream/protective_antigen
 python protective_antigen_test.py
 ```
 
-Train Independent dataset:
+Train on and evaluate the independent bacterial or viral datasets:
+
 ```bash
 cd Downstream/protective_antigen
 python protective_antigen_train.py --mode Independent --subset Bacteria
 python protective_antigen_train.py --mode Independent --subset Viruses
-```
-
-Test Independent dataset:
-```bash
-cd Downstream/protective_antigen
 python protective_antigen_test.py --mode independent --subset Bacteria
 python protective_antigen_test.py --mode independent --subset Viruses
 ```
 
 ### 2.2 pHLA-I Binding
 
-Train CV:
+Train and evaluate five-fold cross-validation:
+
 ```bash
 cd Downstream/pMHC-I
 torchrun --standalone --nproc_per_node=1 MHC_train.py --mode cv
-```
-
-Test CV:
-```bash
-cd Downstream/pMHC-I
 python MHC_test.py --mode cv
 ```
 
-Train Independent dataset:
+Train and evaluate the independent dataset:
+
 ```bash
 cd Downstream/pMHC-I
 torchrun --standalone --nproc_per_node=1 MHC_train.py --mode independent
-```
-
-Test Independent dataset:
-```bash
-cd Downstream/pMHC-I
 python MHC_test.py --mode independent
 ```
 
 ### 2.3 pHLA-II Binding
 
-Precompute peptide embeddings:
+Precompute peptide embeddings before training or evaluation:
+
 ```bash
 cd Downstream/pMHC-II
 python precompute_peptide_embeddings.py --split all --max-length 34
 ```
 
-Train CV:
-```bash
-cd Downstream/pMHC-II
-python train.py --mode cv_train --folds all
-```
+Train all cross-validation folds and evaluate both warm- and cold-start test sets:
 
-Test warm/cold datasets:
 ```bash
-cd Downstream/pMHC-II
+python train.py --mode cv_train --folds all
 python test.py --eval-set both --folds all
 ```
 
-Test warm dataset only:
-```bash
-cd Downstream/pMHC-II
-python test.py --eval-set warm --folds all
-```
+To evaluate only one split, use either:
 
-Test cold dataset only:
 ```bash
-cd Downstream/pMHC-II
+python test.py --eval-set warm --folds all
 python test.py --eval-set cold --folds all
 ```
 
-### 2.4 pTCR Binding
+### 2.4 pTCR Recognition
 
-#### 2.4.1 Seen and Unseen
+#### Seen and Unseen Evaluation
 
-Train:
+Train on the seen-data folds:
+
 ```bash
 cd Downstream/pTCR2
-torchrun --standalone --nproc_per_node=1 TCR_train.py --cv_dir ./data/Seen_5fold_splits --save_dir ../trained_model/pTCR3/Seen --embed_backend AntigenLM
+torchrun --standalone --nproc_per_node=1 TCR_train.py \
+  --cv_dir ./data/Seen_5fold_splits \
+  --save_dir ../trained_model/pTCR3/Seen \
+  --embed_backend AntigenLM
 ```
 
-Test (Seen 5-fold test set):
+Evaluate the seen folds and unseen set:
+
 ```bash
-cd Downstream/pTCR2
-python TCR_test.py --cv_dir ./data/Seen_5fold_splits --weights_dir ../trained_model/pTCR3/Seen --out_dir ../result/pTCR3/AntigenLM_Seen --embed_backend AntigenLM
+python TCR_test.py \
+  --cv_dir ./data/Seen_5fold_splits \
+  --weights_dir ../trained_model/pTCR3/Seen \
+  --out_dir ../result/pTCR3/AntigenLM_Seen \
+  --embed_backend AntigenLM
+
+python TCR_test.py \
+  --weights_dir ../trained_model/pTCR3/Seen \
+  --out_dir ../result/pTCR3/AntigenLM_Unseen \
+  --unseen_csv ./data/Unseen.csv \
+  --embed_backend AntigenLM
 ```
 
-Test (Unseen test set):
+#### CMA and COVID-19 Evaluation
+
+Train on the CMA folds:
+
 ```bash
 cd Downstream/pTCR2
-python TCR_test.py --weights_dir ../trained_model/pTCR3/Seen --out_dir ../result/pTCR3/AntigenLM_Unseen --unseen_csv ./data/Unseen.csv --embed_backend AntigenLM
+torchrun --standalone --nproc_per_node=1 TCR_train.py \
+  --cv_dir ./data/CMA_5fold_splits \
+  --save_dir ../trained_model/pTCR3/CMA \
+  --embed_backend AntigenLM
 ```
 
-#### 2.4.2 CMA
+Evaluate the CMA folds and COVID-19 set:
 
-Train:
 ```bash
-cd Downstream/pTCR2
-torchrun --standalone --nproc_per_node=1 TCR_train.py --cv_dir ./data/CMA_5fold_splits --save_dir ../trained_model/pTCR3/CMA --embed_backend AntigenLM
-```
+python TCR_test.py \
+  --cv_dir ./data/CMA_5fold_splits \
+  --weights_dir ../trained_model/pTCR3/CMA \
+  --out_dir ../result/pTCR3/AntigenLM_CMA \
+  --embed_backend AntigenLM
 
-Test (CMA 5-fold test set):
-```bash
-cd Downstream/pTCR2
-python TCR_test.py --cv_dir ./data/CMA_5fold_splits --weights_dir ../trained_model/pTCR3/CMA --out_dir ../result/pTCR3/AntigenLM_CMA --embed_backend AntigenLM
-```
-
-Test (Covid test set under CMA):
-```bash
-cd Downstream/pTCR2
-python TCR_test.py --weights_dir ../trained_model/pTCR3/CMA --out_dir ../result/pTCR3/AntigenLM_CMA_Covid --independent_csv ./data/Covid_set.csv --embed_backend AntigenLM
+python TCR_test.py \
+  --weights_dir ../trained_model/pTCR3/CMA \
+  --out_dir ../result/pTCR3/AntigenLM_CMA_Covid \
+  --independent_csv ./data/Covid_set.csv \
+  --embed_backend AntigenLM
 ```
 
 ### 2.5 B-cell Epitope Prediction
 
-Train:
 ```bash
 cd Downstream/B_cell_epitope
 python train.py
-```
-
-Test:
-```bash
-cd Downstream/B_cell_epitope
 python test.py
 ```
 
-Make sure paths in configs and scripts point to existing data and model checkpoints on your machine.
+## 3) Demo
 
-![Fig 1](Fig%201.png)
+The demo performs protective-antigen prediction for 100 protein sequences with the released AntigenLM encoder and the cluster-aware fold 1 classifier.
+
+### 3.1 Required Files
+
+- Input: `demo/input/demo_input.csv`
+- AntigenLM encoder: `LLM/AntigenLM/`
+- Classifier checkpoint: `Downstream/trained_model/protective_antigen/30_similarity/fold_1_seed22_AntigenLM.pt`
+
+The input CSV contains `ID`, `sequence`, and `label` columns. Labels are used only to evaluate the example predictions; `1` denotes a protective antigen and `0` a non-protective antigen.
+
+### 3.2 Run the Demo
+
+From the repository root:
+
+```bash
+conda activate AntigenLM
+bash demo/run_demo.sh
+```
+
+
+### 3.3 Output
+
+Predictions are written to:
+
+```text
+demo/output/AntigenLM_cluster_aware_fold_1_pred_results.csv
+```
+
+Metrics are written to `demo/output/AntigenLM_cluster_aware_fold_1_metrics.csv`. The prediction columns are `id`, `y_true`, `y_pred`, and `y_score`. Reference predictions and metrics are provided in `demo/reference/`. Minor score differences can occur across hardware and CUDA versions.
+
+Runtime depends on sequence lengths and the available GPU. See `demo/README.md` for further details.
+
+## 4) Reproduction of Main Results
+
+The repository includes released predictions and summary metrics under `Result/`. Use the following workflow to reproduce the principal AntigenLM results.
+
+### 4.1 Prepare Models and Data
+
+1. Create the environment described in [Installation](#installation).
+2. Place the AntigenLM encoder in `LLM/AntigenLM/`.
+3. Place released task checkpoints in `Downstream/trained_model/`, preserving the downloaded directory structure.
+4. Confirm that each task dataset is present in the corresponding `Downstream/<task>/data/` directory.
+
+Using the released downstream checkpoints reproduces evaluation without retraining. To reproduce the full experimental pipeline, run the training command before the test command for every task in [Downstream](#2-downstream).
+
+### 4.2 Run Task Evaluations
+
+Run the test commands in Sections 2.1-2.5. The principal result groups are organized as follows:
+
+| Task | Released results |
+| --- | --- |
+| Protective-antigen classification | `Result/protective_antigen/` |
+| pHLA-I binding | `Result/pMHC-I/` |
+| pHLA-II binding | `Result/pMHC-II/` |
+| pTCR recognition | `Result/pTCR2/` |
+| B-cell epitope prediction | `Result/B_cell_epitope/` |
+
+Each task directory contains fold-level predictions and/or metrics as well as aggregate summary CSV files. Compare newly generated metrics with the corresponding released tables. Small numerical differences are expected across GPU models, CUDA/cuDNN versions, and stochastic retraining runs.
+
+### 4.3 Figure-ready Results
+
+Data files used for the main figures are collected under `Downstream/Result/`:
+
+| Directory | Contents |
+| --- | --- |
+| `Downstream/Result/Fig 2/` | Protective-antigen predictions and summary metrics, including the micro-dataset and independent bacterial and viral datasets |
+| `Downstream/Result/Fig 3/` | pHLA-I predictions and summary metrics for the micro-dataset and independent MUNIS dataset |
+| `Downstream/Result/Fig 4/` | pTCR predictions and summary metrics for All, COVID-19, Seen (Majority), Unseen (Zero-shot), and independent evaluations |
+| `Downstream/Result/Fig 6/` | Ablation-study fold metrics and the combined ablation summary |
+
+The multi-fold prediction workbooks contain one worksheet per fold. The accompanying CSV files provide method-level summaries and independent-test results.
+
+
+![AntigenLM overview](Fig%201.png)

@@ -69,6 +69,21 @@ To select a particular Python executable:
 PYTHON_BIN=/path/to/python bash demo/run_demo.sh
 ```
 
+## Run on Your Own Data
+
+Prepare a CSV file containing the `ID`, `sequence`, and `label` columns, where `label` is `1` for a protective antigen and `0` otherwise. From the repository root, replace `/path/to/your_data.csv` with your input file and run:
+
+```bash
+conda activate AntigenLM
+python demo/predict.py \
+  --input /path/to/your_data.csv \
+  --model-dir LLM/AntigenLM \
+  --classifier Downstream/trained_model/protective_antigen/30_similarity/fold_1_seed22_AntigenLM.pt \
+  --output-dir demo/output/your_data
+```
+
+Predictions and evaluation metrics will be written to `demo/output/your_data/`. Use `--threshold`, `--batch-size`, or `--extract-batch-size` to override their default values when needed.
+
 ## Output
 
 The demo writes:

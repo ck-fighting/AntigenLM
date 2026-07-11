@@ -24,7 +24,7 @@ AntigenLM is a protein language model for antigen representation and immune-rela
    - To reproduce the complete pre-training pipeline, also download [MicroLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/MicroLM) and [PathogLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/PathogLM) to `LLM/MicroLM/` and `LLM/PathogLM/`, respectively.
    - To evaluate with released downstream classifiers, download the [downstream checkpoints](https://huggingface.co/cckai2017/Downstream_trained_model/tree/main) and retain their directory structure under `Downstream/trained_model/`.
 
-### Typical Installation Time
+### Installation Time in the Tested Environment
 
 Creating the Conda environment takes approximately 12 minutes on a server running Ubuntu 20.04.6 LTS with two AMD EPYC 7543 32-core processors (64 physical cores in total) and 2 TiB of memory. This estimate excludes the time required to download the pretrained model and downstream classifier checkpoints.
 
@@ -282,8 +282,22 @@ conda activate AntigenLM
 bash demo/run_demo.sh
 ```
 
+### 3.3 Run on Your Own Data
 
-### 3.3 Output
+Prepare a CSV file containing the `ID`, `sequence`, and `label` columns, where `label` is `1` for a protective antigen and `0` otherwise. Then run the following command from the repository root, replacing `/path/to/your_data.csv` with your input file:
+
+```bash
+conda activate AntigenLM
+python demo/predict.py \
+  --input /path/to/your_data.csv \
+  --model-dir LLM/AntigenLM \
+  --classifier Downstream/trained_model/protective_antigen/30_similarity/fold_1_seed22_AntigenLM.pt \
+  --output-dir demo/output/your_data
+```
+
+Predictions and evaluation metrics will be written to `demo/output/your_data/`.
+
+### 3.4 Output
 
 Predictions are written to:
 
@@ -295,11 +309,12 @@ Metrics are written to `demo/output/AntigenLM_cluster_aware_fold_1_metrics.csv`.
 
 Runtime depends on sequence lengths and the available GPU. See `demo/README.md` for further details.
 
-### 3.4 Expected Runtime
+### 3.5 Expected Runtime
 
-On the tested Ubuntu 20.04.6 LTS system with an NVIDIA A100-SXM4-80GB GPU, the demo processes 100 protein sequences in approximately 1 minutes. This runtime includes model loading, embedding extraction, and classifier inference, but excludes model and checkpoint download time.
+On the tested Ubuntu 20.04.6 LTS system with an NVIDIA A100-SXM4-80GB GPU, the demo processes 100 protein sequences in approximately 1 minute. This runtime includes model loading, embedding extraction, and classifier inference, but excludes model and checkpoint download time.
 
 CPU-only execution has not been benchmarked and is not recommended for this demo.
+
 ## 4) Reproduction of Main Results
 
 The repository includes released predictions and summary metrics under `Result/`. Use the following workflow to reproduce the principal AntigenLM results.
@@ -313,21 +328,8 @@ The repository includes released predictions and summary metrics under `Result/`
 
 Using the released downstream checkpoints reproduces evaluation without retraining. To reproduce the full experimental pipeline, run the training command before the test command for every task in [Downstream](#2-downstream).
 
-### 4.2 Run Task Evaluations
 
-Run the test commands in Sections 2.1-2.5. The principal result groups are organized as follows:
-
-| Task | Released results |
-| --- | --- |
-| Protective-antigen classification | `Result/protective_antigen/` |
-| pHLA-I binding | `Result/pMHC-I/` |
-| pHLA-II binding | `Result/pMHC-II/` |
-| pTCR recognition | `Result/pTCR2/` |
-| B-cell epitope prediction | `Result/B_cell_epitope/` |
-
-Each task directory contains fold-level predictions and/or metrics as well as aggregate summary CSV files. Compare newly generated metrics with the corresponding released tables. Small numerical differences are expected across GPU models, CUDA/cuDNN versions, and stochastic retraining runs.
-
-### 4.3 Figure-ready Results
+### 4.2 Figure-ready Results
 
 Data files used for the main figures are collected under `Downstream/Result/`:
 

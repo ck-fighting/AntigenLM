@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 MODEL_DIR="$ROOT/LLM/AntigenLM"
-CLASSIFIER="$ROOT/Downstream/trained_model/protective_antigen/cluster_aware_40_70_15_15_splits/fold_1_seed22_AntigenLM.pt"
+CLASSIFIER="$ROOT/Downstream/trained_model/protective_antigen/30_similarity/fold_1_seed22_AntigenLM.pt"
 INPUT="$ROOT/demo/input/demo_input.csv"
 OUTPUT_DIR="$ROOT/demo/output"
 PYTHON_BIN="${PYTHON_BIN:-python}"

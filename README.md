@@ -24,6 +24,10 @@ AntigenLM is a protein language model for antigen representation and immune-rela
    - To reproduce the complete pre-training pipeline, also download [MicroLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/MicroLM) and [PathogLM](https://huggingface.co/cckai2017/AntigenLM/tree/main/PathogLM) to `LLM/MicroLM/` and `LLM/PathogLM/`, respectively.
    - To evaluate with released downstream classifiers, download the [downstream checkpoints](https://huggingface.co/cckai2017/Downstream_trained_model/tree/main) and retain their directory structure under `Downstream/trained_model/`.
 
+### Typical Installation Time
+
+Creating the Conda environment takes approximately 12 minutes on a server running Ubuntu 20.04.6 LTS with two AMD EPYC 7543 32-core processors (64 physical cores in total) and 2 TiB of memory. This estimate excludes the time required to download the pretrained model and downstream classifier checkpoints.
+
 ## System Requirements
 
 ### Software
@@ -291,6 +295,11 @@ Metrics are written to `demo/output/AntigenLM_cluster_aware_fold_1_metrics.csv`.
 
 Runtime depends on sequence lengths and the available GPU. See `demo/README.md` for further details.
 
+### 3.4 Expected Runtime
+
+On the tested Ubuntu 20.04.6 LTS system with an NVIDIA A100-SXM4-80GB GPU, the demo processes 100 protein sequences in approximately 1 minutes. This runtime includes model loading, embedding extraction, and classifier inference, but excludes model and checkpoint download time.
+
+CPU-only execution has not been benchmarked and is not recommended for this demo.
 ## 4) Reproduction of Main Results
 
 The repository includes released predictions and summary metrics under `Result/`. Use the following workflow to reproduce the principal AntigenLM results.
@@ -326,10 +335,18 @@ Data files used for the main figures are collected under `Downstream/Result/`:
 | --- | --- |
 | `Downstream/Result/Fig 2/` | Protective-antigen predictions and summary metrics, including the micro-dataset and independent bacterial and viral datasets |
 | `Downstream/Result/Fig 3/` | pHLA-I predictions and summary metrics for the micro-dataset and independent MUNIS dataset |
-| `Downstream/Result/Fig 4/` | pTCR predictions and summary metrics for All, COVID-19, Seen (Majority), Unseen (Zero-shot), and independent evaluations |
+| `Downstream/Result/Fig 4/` | pTCR predictions and summary metrics for All, COVID-19, Seen, Unseen, and independent evaluations |
 | `Downstream/Result/Fig 6/` | Ablation-study fold metrics and the combined ablation summary |
 
 The multi-fold prediction workbooks contain one worksheet per fold. The accompanying CSV files provide method-level summaries and independent-test results.
 
+
+## License
+
+Unless otherwise stated, the source code in this repository is licensed under
+the MIT License. See the [LICENSE](LICENSE) file for details.
+
+The pretrained model checkpoints and datasets are distributed separately and
+are subject to the license terms specified in their respective repositories.
 
 ![AntigenLM overview](Fig%201.png)

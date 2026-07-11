@@ -45,13 +45,7 @@ LLM/AntigenLM/
 The classifier checkpoint is:
 
 ```text
-Downstream/trained_model/protective_antigen/cluster_aware_40_70_15_15_splits/fold_1_seed22_AntigenLM.pt
-```
-
-In the current workspace, this resolves to:
-
-```text
-/home/dataset-local/AntigenLM_new/Downstream/trained_model/protective_antigen/cluster_aware_40_70_15_15_splits/fold_1_seed22_AntigenLM.pt
+Downstream/trained_model/protective_antigen/30_similarity/fold_1_seed22_AntigenLM.pt
 ```
 
 ## Run
@@ -94,3 +88,9 @@ The prediction columns are `id`, `y_true`, `y_pred`, and `y_score`. Reference fi
 - Transformers 4.45.2
 - CUDA runtime 12.1
 - NVIDIA A100-SXM4-80GB
+
+## Expected Runtime
+
+On the tested Ubuntu 20.04.6 LTS system with an NVIDIA A100-SXM4-80GB GPU, the demo processes 100 protein sequences in approximately 0.1 minutes (about 6 seconds). This runtime includes model loading, embedding extraction, and classifier inference, but excludes model and checkpoint download time.
+
+CPU-only execution has not been benchmarked and is not recommended for this demo.

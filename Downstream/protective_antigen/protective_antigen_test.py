@@ -15,6 +15,7 @@ from protective_antigen_model import SoluModel
 from protective_antigen_utils import (
     AntigenDataset,
     DEFAULT_CV_DATA_DIR,
+    DEFAULT_IBPA_TEST_FILE,
     DEFAULT_PLDGL_DATA_DIR,
     P,
     binary_metrics,
@@ -27,6 +28,18 @@ from protective_antigen_utils import (
     sanitize_name,
     setup_seed,
 )
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+DEFAULT_IBPA_MODEL_PATH = P(
+    PROJECT_ROOT,
+    "Downstream",
+    "trained_model",
+    "protective_antigen",
+    "iBPA",
+    "AntigenLM_iBPA_best.pt",
+)
+DEFAULT_RESULT_DIR = P(PROJECT_ROOT, "Downstream", "result", "protective_antigen")
 
 
 def collate_emb_batch(batch):
@@ -109,7 +122,7 @@ def evaluate_dataset(
     ).to_csv(result_path, index=False)
     print(f"Predictions saved to {result_path}")
 
-    return {"fold": run_label, **metrics}
+    return {"fold": run_label, "threshold": threshold, **metrics}
 
 
 def resolve_cv_checkpoint(weights_dir, run_name, fold_idx, seed, embed_backend):
@@ -130,7 +143,7 @@ def write_metrics(metrics, out_csv):
 
     metrics_df = pd.DataFrame(metrics)
     avg_row, sd_row = {"fold": "avg"}, {"fold": "sd"}
-    for col in ["auc", "aupr", "acc", "precision", "recall", "f1", "mcc"]:
+    for col in ["threshold", "auc", "aupr", "acc", "precision", "recall", "f1", "mcc"]:
         avg_row[col] = float(metrics_df[col].mean())
         sd_row[col] = float(metrics_df[col].std(ddof=0)) if len(metrics_df) > 1 else 0.0
     metrics_df = pd.concat([metrics_df, pd.DataFrame([avg_row, sd_row])], ignore_index=True)
@@ -145,6 +158,43 @@ def write_single_metrics(metrics, out_csv):
 
     pd.DataFrame([metrics]).to_csv(out_csv, index=False)
     print(f"\nMetrics saved to: {out_csv}")
+
+
+def evaluate_ibpa(args, extract_emb_func, emb_dim, device):
+    test_path = DEFAULT_IBPA_TEST_FILE
+    model_path = os.path.abspath(args.model_path or DEFAULT_IBPA_MODEL_PATH)
+    if not os.path.exists(test_path):
+        raise FileNotFoundError(f"iBPA test file not found: {test_path}")
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"iBPA checkpoint not found: {model_path}")
+
+    test_df = read_labeled_table(test_path, with_id=True)
+    output_dir = P(args.out_dir, "iBPA_data")
+    print(f"iBPA test file: {test_path}")
+    print(f"Checkpoint: {model_path}")
+    print_split_counts("iBPA test set", test_df)
+
+    metrics = evaluate_dataset(
+        eval_dataset=AntigenDataset(
+            test_df["sequence"], test_df["label"], ids=test_df["ID"]
+        ),
+        extract_emb_func=extract_emb_func,
+        emb_dim=emb_dim,
+        model_path=model_path,
+        output_dir=output_dir,
+        run_label="iBPA",
+        split_name="iBPA",
+        batch_size=args.batch_size,
+        device=device,
+        threshold=args.threshold,
+        model_type=args.embed_backend,
+        hidden_dim=args.hidden_dim,
+        dropout=args.dropout,
+    )
+    write_single_metrics(
+        metrics,
+        P(output_dir, f"{args.embed_backend}_iBPA_metrics.csv"),
+    )
 
 
 def evaluate_cv(args, extract_emb_func, emb_dim, device):
@@ -209,6 +259,7 @@ def evaluate_pldgl(args, extract_emb_func, emb_dim, device):
     data_dir = os.path.abspath(args.pldgl_dir or args.data_dir)
     run_out_dir = P(args.out_dir, "PLDGL")
     os.makedirs(run_out_dir, exist_ok=True)
+    run_suffix = sanitize_name(args.run_suffix) if args.run_suffix else None
 
     print(f"PLDGL data directory: {data_dir}")
     print(f"Weights directory: {args.weights_dir}")
@@ -231,13 +282,16 @@ def evaluate_pldgl(args, extract_emb_func, emb_dim, device):
         print(f"Test file: {test_path}")
         print(f"Checkpoint: {ckpt_path}")
         print_split_counts("Test set", test_df)
+        run_label = f"PLDGL_{subset}"
+        if run_suffix:
+            run_label = f"{run_label}_{run_suffix}"
         metrics = evaluate_dataset(
             eval_dataset=AntigenDataset(test_df["sequence"], test_df["label"], ids=test_df["ID"]),
             extract_emb_func=extract_emb_func,
             emb_dim=emb_dim,
             model_path=ckpt_path,
             output_dir=run_out_dir,
-            run_label=f"PLDGL_{subset}",
+            run_label=run_label,
             split_name="test",
             batch_size=args.batch_size,
             device=device,
@@ -248,7 +302,7 @@ def evaluate_pldgl(args, extract_emb_func, emb_dim, device):
         )
         write_single_metrics(
             metrics,
-            P(run_out_dir, f"{args.embed_backend}_PLDGL_{subset}_test_metrics.csv"),
+            P(run_out_dir, f"{args.embed_backend}_{sanitize_name(run_label)}_test_metrics.csv"),
         )
 
 
@@ -257,16 +311,16 @@ def main():
     p.add_argument(
         "--mode",
         type=str,
-        choices=["cv", "independent"],
+        choices=["cv", "independent", "ibpa"],
         default="cv",
-        help="CV evaluates the default split_fold_*.csv files; Independent evaluates the PLDGL route.",
+        help="CV evaluates fold splits; Independent evaluates PLDGL; ibpa evaluates the saved iBPA checkpoint.",
     )
     p.add_argument("--data_dir", type=str, default=None, help="CV data root; defaults to ./data")
     p.add_argument("--dataset_name", type=str, default=None)
     p.add_argument("--folds", type=str, default=None)
     p.add_argument("--weights_dir", type=str, default="../trained_model/protective_antigen")
     p.add_argument("--model_path", type=str, default=None, help="Evaluate one explicit checkpoint")
-    p.add_argument("--out_dir", type=str, default="../result/protective_antigen")
+    p.add_argument("--out_dir", type=str, default=DEFAULT_RESULT_DIR)
     p.add_argument(
         "--eval_split",
         type=str,
@@ -299,15 +353,25 @@ def main():
     p.add_argument("--subset", type=str, default="All")
     p.add_argument("--run_all_pldgl_subsets", action="store_true")
     p.add_argument("--test_file", type=str, default=None, help="Optional explicit csv/xlsx test file")
+    p.add_argument("--run_suffix", type=str, default=None, help="Optional suffix for Independent result filenames")
     args = p.parse_args()
 
     setup_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    mode = "Independent" if args.mode.lower() == "independent" or args.pldgl else "CV"
+    if args.mode.lower() == "ibpa":
+        mode = "iBPA"
+    elif args.mode.lower() == "independent" or args.pldgl:
+        mode = "Independent"
+    else:
+        mode = "CV"
     if mode == "CV":
         args.data_dir = os.path.abspath(args.data_dir or DEFAULT_CV_DATA_DIR)
-    else:
+    elif mode == "Independent":
         args.pldgl_dir = os.path.abspath(args.pldgl_dir or args.data_dir or DEFAULT_PLDGL_DATA_DIR)
+    else:
+        if args.embed_backend != "AntigenLM":
+            raise ValueError("--mode ibpa uses the retained AntigenLM checkpoint")
+        args.hf_no_special_tokens = True
 
     print(f"Mode: {mode}")
     print(f"Model: {args.embed_backend} | Device: {device}")
@@ -326,7 +390,9 @@ def main():
         hf_autocast_dtype=resolve_hf_extract_dtype(args.hf_extract_dtype, device),
     )
 
-    if mode == "Independent":
+    if mode == "iBPA":
+        evaluate_ibpa(args, extract_emb_func, emb_dim, device)
+    elif mode == "Independent":
         evaluate_pldgl(args, extract_emb_func, emb_dim, device)
     else:
         print(f"CV evaluation split: {args.eval_split}")

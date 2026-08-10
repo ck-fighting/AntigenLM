@@ -10,6 +10,7 @@ PathogLM/
 pTCR/
 trained_model/
 uniport/
+methods/
 
 *.pt
 *.csv
@@ -19,7 +20,10 @@ uniport/
 *.fasta
 *.fasta.gz
 *.npy
-
+TCR-peptide_Interpretability/
+epiTCR/
+Lu_dataset/
+.venv/
 !Pre-training/bert_data_prepare/blosum62.json
 !Pre-training/config/*.json
 !Pre-training/logger/logger_config.json

@@ -9,7 +9,8 @@ P = os.path.join
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CV_DATA_DIR = P(SCRIPT_DIR, "data", "30_similarity")
 DEFAULT_PLDGL_DATA_DIR = P(SCRIPT_DIR, "data", "Independent_data")
-PLDGL_SUBSETS = ("Bacteria", "Viruses")
+DEFAULT_IBPA_TEST_FILE = P(SCRIPT_DIR, "data", "iBPA_data", "iBPA_test.csv")
+PLDGL_SUBSETS = ("All", "Bacteria", "Eukaryota", "Viruses")
 
 
 def setup_seed(seed):
@@ -27,16 +28,17 @@ def sanitize_name(name):
 
 
 def parse_subset_list(text, run_all=False):
-    if run_all or (text or "").strip().lower() == "all":
+    if run_all:
         return list(PLDGL_SUBSETS)
 
     subsets = [token.strip() for token in (text or "").split(",") if token.strip()]
-    unknown = [item for item in subsets if item not in PLDGL_SUBSETS]
+    canonical_names = {item.lower(): item for item in PLDGL_SUBSETS}
+    unknown = [item for item in subsets if item.lower() not in canonical_names]
     if unknown:
         raise ValueError(
             f"Unknown PLDGL subset: {unknown[0]}. Available: {', '.join(PLDGL_SUBSETS)}"
         )
-    return subsets or ["All"]
+    return [canonical_names[item.lower()] for item in subsets] or ["All"]
 
 
 def parse_fold_filter(folds_text):
@@ -191,10 +193,72 @@ def discover_cv_split_files(cv_dir, split_name="test", folds_text=None):
     ]
 
 
+def _resolve_plgdl_manifest(df, manifest_path):
+    import pandas as pd
+
+    data_dir = os.path.dirname(os.path.abspath(manifest_path))
+    source_candidates = [
+        P(data_dir, "600-6000.xlsx"),
+        P(data_dir, "PLDGL_600-6000.xlsx"),
+    ]
+    source_path = next((path for path in source_candidates if os.path.exists(path)), None)
+    if source_path is None:
+        raise FileNotFoundError(
+            f"PLGDL manifest requires a sibling sequence workbook: {source_candidates[0]}"
+        )
+
+    source_frames = []
+    for sheet_name, label in (("pos600", 1), ("neg6000", 0)):
+        source = pd.read_excel(
+            source_path,
+            sheet_name=sheet_name,
+            header=None,
+            usecols=[0, 1, 2],
+            names=["ProteinID", "sequence", "Domain"],
+        )
+        source["source_label"] = label
+        source_frames.append(source)
+    source_df = pd.concat(source_frames, ignore_index=True)
+    source_df["ProteinID"] = source_df["ProteinID"].astype(str).str.strip()
+    if source_df["ProteinID"].duplicated().any():
+        raise ValueError(f"Duplicate ProteinID values in sequence workbook: {source_path}")
+
+    manifest = df.copy()
+    manifest["ProteinID"] = manifest["ProteinID"].astype(str).str.strip()
+    label_col = "label" if "label" in manifest.columns else "Label"
+    merged = manifest.merge(
+        source_df,
+        on="ProteinID",
+        how="left",
+        validate="many_to_one",
+    )
+    missing_ids = merged.loc[merged["sequence"].isna(), "ProteinID"].tolist()
+    if missing_ids:
+        raise ValueError(
+            f"{manifest_path} has ProteinID values missing from {source_path}: {missing_ids[0]}"
+        )
+    if not merged[label_col].astype(int).eq(merged["source_label"]).all():
+        raise ValueError(f"Label mismatch between manifest and sequence workbook: {manifest_path}")
+    if "PathogenType" in merged.columns:
+        manifest_domain = merged["PathogenType"].astype(str).str.strip()
+        source_domain = merged["Domain"].astype(str).str.strip()
+        if not manifest_domain.eq(source_domain).all():
+            raise ValueError(f"Domain mismatch between manifest and sequence workbook: {manifest_path}")
+
+    return merged.rename(columns={"ProteinID": "ID", label_col: "label"})[
+        ["ID", "sequence", "label"]
+    ]
+
+
 def read_labeled_table(path, with_id=False):
     import pandas as pd
 
     df = pd.read_excel(path) if path.endswith((".xlsx", ".xls")) else pd.read_csv(path)
+    has_sequence = "sequence" in df.columns or "Sequence" in df.columns
+    has_label = "label" in df.columns or "Label" in df.columns
+    if not has_sequence and has_label and "ProteinID" in df.columns:
+        df = _resolve_plgdl_manifest(df, path)
+
     rename = {}
     if "Sequence" in df.columns and "sequence" not in df.columns:
         rename["Sequence"] = "sequence"

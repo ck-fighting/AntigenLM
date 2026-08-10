@@ -425,6 +425,12 @@ def main():
     )
     p.add_argument("--data_dir", type=str, default=None, help="CV data root; defaults to ./data")
     p.add_argument("--dataset_name", type=str, default=None)
+    p.add_argument(
+        "--run_name",
+        type=str,
+        default=None,
+        help="Optional CV checkpoint subdirectory name; defaults to the dataset directory name.",
+    )
     p.add_argument("--folds", type=str, default=None)
     p.add_argument("--save_dir", type=str, default="../trained_model/protective_antigen")
     p.add_argument(
@@ -474,7 +480,12 @@ def main():
     p.add_argument("--seed", type=int, default=22)
     p.add_argument("--legacy_split_train_val", action="store_true")
     p.add_argument("--independent_data_dir", type=str, default=None, help="PLDGL data directory for --mode Independent")
-    p.add_argument("--subset", type=str, default="All", help="PLDGL subset: All,Bacteria,Viruses or comma list")
+    p.add_argument(
+        "--subset",
+        type=str,
+        default="All",
+        help="PLDGL subset: All, Bacteria, Eukaryota, Viruses, or a comma-separated list",
+    )
     p.add_argument("--run_all_subsets", action="store_true", help="Run all PLDGL subsets in Independent mode")
     p.add_argument("--train_file", type=str, default=None, help="Explicit PLDGL train xlsx for Independent mode")
     p.add_argument("--test_file", type=str, default=None, help="Explicit PLDGL test xlsx for Independent mode")
@@ -526,6 +537,7 @@ def main():
     if mode == "Independent":
         print(f"Independent data directory: {args.independent_data_dir}")
         for subset in parse_subset_list(args.subset, args.run_all_subsets):
+            setup_seed(args.seed)
             run_pldgl_subset(args, subset, extract_emb_func, emb_dim, device)
         return
 
@@ -533,7 +545,7 @@ def main():
     print("CV training uses train_fold_*.csv and val_fold_*.csv; test_fold_*.csv is reserved for protective_antigen_test.py.")
 
     for cv_dir, dataset_label in resolve_cv_datasets(args.data_dir, args.dataset_name):
-        run_name = sanitize_name(dataset_label)
+        run_name = sanitize_name(args.run_name or dataset_label)
         run_save_dir = P(args.save_dir, run_name)
         os.makedirs(run_save_dir, exist_ok=True)
 
